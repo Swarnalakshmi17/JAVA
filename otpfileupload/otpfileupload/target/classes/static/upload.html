@@ -1,0 +1,195 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Secure File Storage</title>
+    <link href="https://fonts.googleapis.com/css2?family=Poppins&display=swap" rel="stylesheet">
+    <style>
+        body {
+            font-family: 'Poppins', sans-serif;
+            margin: 0;
+            background-color: #f9f9fb;
+        }
+        header {
+            background-color: #fff;
+            padding: 20px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 4px rgba(0, 0, 0, 0.05);
+        }
+        header h1 {
+            margin: 0;
+            font-size: 1.5rem;
+        }
+        .logout-btn {
+            padding: 10px 20px;
+            background-color: #f4f4f5;
+            border: 1px solid #ccc;
+            border-radius: 8px;
+            cursor: pointer;
+        }
+        .container {
+            padding: 30px;
+        }
+        h2 {
+            font-size: 2rem;
+        }
+        .dashboard {
+            display: flex;
+            justify-content: space-between;
+            gap: 20px;
+            flex-wrap: wrap;
+        }
+        .upload-section, .files-section {
+            flex: 1;
+            min-width: 300px;
+        }
+        .upload-box {
+            border: 2px dashed #ccc;
+            padding: 40px;
+            text-align: center;
+            border-radius: 12px;
+            background-color: #fff;
+        }
+        .upload-box p {
+            margin: 10px 0;
+        }
+        .upload-box input {
+            display: none;
+        }
+        .upload-btn {
+            margin-top: 20px;
+            padding: 12px 24px;
+            background-color: #333;
+            color: #fff;
+            border: none;
+            border-radius: 8px;
+            font-weight: bold;
+            cursor: pointer;
+        }
+        .file-item {
+            background: #fff;
+            padding: 15px;
+            margin-bottom: 10px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.05);
+        }
+        .file-item span {
+            font-weight: 500;
+        }
+        .file-actions i {
+            margin-left: 15px;
+            cursor: pointer;
+        }
+    </style>
+</head>
+<body>
+<header>
+    <h1>Secure File Manager</h1>
+    <button class="logout-btn" onclick="logout()">Logout</button>
+</header>
+<div class="container">
+    <h2>Welcome Swarna,</h2>
+    <div class="dashboard">
+        <div class="upload-section">
+            <h3>Upload Files</h3>
+            <div class="upload-box" onclick="document.getElementById('fileInput').click()">
+                <p><strong>Click to upload</strong> or drag and drop</p>
+                <p>Files will be encrypted!</p>
+                <input type="file" id="fileInput">
+                <button class="upload-btn" onclick="uploadFile()">Upload File</button>
+            </div>
+        </div>
+        <div class="files-section">
+            <h3>Your Files</h3>
+            <div id="fileList">
+                <!-- Files will be listed here -->
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    function uploadFile() {
+        const file = document.getElementById('fileInput').files[0];
+        if (!file) {
+            alert("Please select a file");
+            return;
+        }
+
+        const formData = new FormData();
+        formData.append('file', file);
+
+        fetch('/api/upload', {
+            method: 'POST',
+            body: formData
+        })
+        .then(res => res.text())
+        .then(msg => {
+            alert(msg);
+            document.getElementById('fileInput').value = '';
+            loadFileList();
+        });
+    }
+
+    function logout() {
+        fetch('/api/logout', { method: 'POST' })
+            .then(res => res.text())
+            .then(msg => {
+                alert(msg);
+                window.location.href = "index.html";
+            });
+    }
+
+    function loadFileList() {
+        fetch('/api/files')
+            .then(res => res.json())
+            .then(files => {
+                const list = document.getElementById('fileList');
+                list.innerHTML = '';
+                if (files.length === 0) {
+                    list.innerHTML = '<p>No files uploaded yet.</p>';
+                } else {
+                    files.forEach(file => {
+                        const fileName = file.split('/').pop();
+                        const email = file.split('/')[0];
+                        const item = document.createElement('div');
+                        item.className = 'file-item';
+                        item.innerHTML = `
+                            <span>${fileName}</span>
+                            <div class="file-actions">
+                                <i onclick="downloadFile('${email}', '${fileName}')">&#8681;</i>
+                                <i onclick="deleteFile('${file}')">&#128465;</i>
+                            </div>
+                        `;
+                        list.appendChild(item);
+                    });
+                }
+            });
+    }
+
+    function downloadFile(email, filename) {
+        const link = document.createElement('a');
+        link.href = `/api/download/${email}/${filename}`;
+        link.download = filename;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+    }
+
+    function deleteFile(filePath) {
+        fetch(`/api/files/${filePath}`, { method: 'DELETE' })
+            .then(res => res.text())
+            .then(msg => {
+                alert(msg);
+                loadFileList();
+            });
+    }
+
+    window.onload = loadFileList;
+</script>
+</body>
+</html>
